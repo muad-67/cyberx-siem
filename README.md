@@ -501,7 +501,7 @@ echo "backdoor:pass123" | sudo chpasswd
 ```
 
 **What to see on dashboard:**
-- Alerts tab: `persistence` HIGH — MITRE T1136 Create Account
+- Alerts tab: `persistence` HIGH — MITRE T1136 Create Accounts
 
 ---
 
