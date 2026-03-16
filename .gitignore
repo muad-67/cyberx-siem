@@ -1,0 +1,45 @@
+# Python virtual environments
+venv/
+env/
+.venv/
+.env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Database files — contain live data, never commit
+*.db
+*.db-shm
+*.db-wal
+siem_archive.db
+
+# Environment / secrets
+.env
+*.env
+.env.local
+
+# Node
+node_modules/
+siem_dashboard/build/
+
+# Claude Code internal files
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+*.log.*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
