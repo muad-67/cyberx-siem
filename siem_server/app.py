@@ -6,6 +6,8 @@ Registers all blueprints, enables CORS for the React dashboard,
 and initializes the database on startup.
 """
 
+import os
+
 from flask import Flask, jsonify
 from flask_cors import CORS
 
@@ -40,11 +42,15 @@ def create_app() -> Flask:
 
 
 if __name__ == "__main__":
-    init_db()
-    seed_default_users()
+    is_reloader_child = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
+    should_bootstrap = (not Config.DEBUG) or is_reloader_child
 
-    from services.retention import start_retention_worker
-    start_retention_worker()
+    if should_bootstrap:
+        init_db()
+        seed_default_users()
+
+        from services.retention import start_retention_worker
+        start_retention_worker()
 
     app = create_app()
 

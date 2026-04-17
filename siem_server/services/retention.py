@@ -19,8 +19,10 @@ def _archive_old_logs():
     cutoff = (datetime.utcnow() - timedelta(days=Config.LOG_RETENTION_DAYS)).isoformat()
 
     # Connect to both databases
-    live_conn    = sqlite3.connect(Config.DB_PATH)
-    archive_conn = sqlite3.connect(Config.ARCHIVE_DB_PATH)
+    live_conn    = sqlite3.connect(Config.DB_PATH, timeout=30)
+    archive_conn = sqlite3.connect(Config.ARCHIVE_DB_PATH, timeout=30)
+    live_conn.execute("PRAGMA busy_timeout=30000")
+    archive_conn.execute("PRAGMA busy_timeout=30000")
     archive_conn.execute("PRAGMA journal_mode=WAL")
 
     # Ensure archive table exists
@@ -50,8 +52,9 @@ def _archive_old_logs():
         archive_conn.commit()
 
         live_conn.execute("DELETE FROM raw_logs WHERE created_at < ?", (cutoff,))
-        live_conn.execute("VACUUM")
         live_conn.commit()
+        # VACUUM must run outside an active transaction.
+        live_conn.execute("VACUUM")
         print(f"[RETENTION] Archived {len(rows)} logs older than {Config.LOG_RETENTION_DAYS} days.")
 
     live_conn.close()

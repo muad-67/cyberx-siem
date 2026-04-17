@@ -11,6 +11,7 @@ GET  /api/auth/users     — list all users (admin only)
 
 import hashlib
 import os
+import sqlite3
 from datetime import datetime, timedelta
 
 import jwt
@@ -130,11 +131,17 @@ def login():
         return jsonify({"error": "Invalid username or password"}), 401
 
     # Update last_login timestamp
-    conn.execute(
-        "UPDATE users SET last_login = ? WHERE id = ?",
-        (datetime.utcnow().isoformat(), user["id"]),
-    )
-    conn.commit()
+    try:
+        conn.execute(
+            "UPDATE users SET last_login = ? WHERE id = ?",
+            (datetime.utcnow().isoformat(), user["id"]),
+        )
+        conn.commit()
+    except sqlite3.OperationalError as e:
+        # Don't fail successful auth because of a transient DB lock.
+        if "locked" not in str(e).lower():
+            conn.close()
+            raise
     conn.close()
 
     token = _generate_token(user["id"], user["username"], user["role"])

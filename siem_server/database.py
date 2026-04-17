@@ -11,9 +11,10 @@ from config import Config
 
 def get_db():
     """Open and return a database connection with dict-like row access."""
-    conn = sqlite3.connect(Config.DB_PATH)
+    conn = sqlite3.connect(Config.DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row   # lets us do row['column_name']
     conn.execute("PRAGMA journal_mode=WAL")  # better concurrency
+    conn.execute("PRAGMA busy_timeout=30000")
     return conn
 
 
@@ -267,7 +268,7 @@ def _migrate():
 
 
 def seed_default_users():
-    """Create default admin and analyst accounts if they don't already exist."""
+    """Ensure default demo accounts exist and have known credentials for local dev."""
     import hashlib, os
 
     def _hash(password: str) -> str:
@@ -282,6 +283,7 @@ def seed_default_users():
 
     conn = get_db()
     created = []
+    updated = []
     for username, email, password, role in defaults:
         exists = conn.execute(
             "SELECT id FROM users WHERE username = ?", (username,)
@@ -292,10 +294,22 @@ def seed_default_users():
                 (username, email, _hash(password), role),
             )
             created.append(f"{username} ({role})")
+        else:
+            conn.execute(
+                """
+                UPDATE users
+                SET email = ?, password_hash = ?, role = ?, is_active = 1
+                WHERE username = ?
+                """,
+                (email, _hash(password), role, username),
+            )
+            updated.append(f"{username} ({role})")
     conn.commit()
     conn.close()
 
     if created:
         print(f"[DB] Default users created: {', '.join(created)}")
-    else:
+    if updated:
+        print(f"[DB] Default users refreshed: {', '.join(updated)}")
+    if not created and not updated:
         print("[DB] Default users already exist.")
