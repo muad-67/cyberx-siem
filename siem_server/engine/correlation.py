@@ -12,6 +12,44 @@ from database import get_db
 from config import Config
 
 
+def _due_at(severity: str) -> str:
+    minutes = Config.SLA_MINUTES.get(severity, 1440)
+    return (datetime.utcnow() + timedelta(minutes=minutes)).isoformat()
+
+
+def open_incident_for_critical(source_ip: str, alert_id: int, alert_type: str) -> int | None:
+    """Every critical alert gets an incident (with an SLA timer) so none is missed."""
+    window = getattr(Config, "CORRELATION_WINDOW_MINUTES", 10)
+    since = (datetime.utcnow() - timedelta(minutes=window)).isoformat()
+    conn = get_db()
+    existing = conn.execute("""
+        SELECT id, alert_ids FROM incidents
+        WHERE assigned_to = 'AUTO-CORRELATOR' AND created_at >= ? AND title LIKE ?
+    """, (since, f"%{source_ip}%")).fetchone()
+    if existing:
+        ids = [i for i in (existing["alert_ids"] or "").split(",") if i]
+        if str(alert_id) not in ids:
+            ids.append(str(alert_id))
+            conn.execute("UPDATE incidents SET alert_ids = ?, updated_at = ? WHERE id = ?",
+                         (",".join(ids), datetime.utcnow().isoformat(), existing["id"]))
+            conn.commit()
+        conn.close()
+        return existing["id"]
+    cur = conn.execute("""
+        INSERT INTO incidents (title, description, severity, status, alert_ids,
+                               assigned_to, priority, due_at)
+        VALUES (?, ?, 'critical', 'open', ?, 'AUTO-CORRELATOR', 'critical', ?)
+    """, (f"[AUTO] Critical: {alert_type.replace('_', ' ')} from {source_ip}",
+          f"Critical alert #{alert_id} ({alert_type}) from {source_ip}. "
+          f"Respond within {Config.SLA_MINUTES['critical']} minutes.",
+          str(alert_id), _due_at("critical")))
+    conn.commit()
+    new_id = cur.lastrowid
+    conn.close()
+    print(f"[INCIDENT] Auto-incident #{new_id} opened for critical alert #{alert_id}")
+    return new_id
+
+
 def correlate_and_create_incident(source_ip: str) -> int | None:
     """
     Check if source_ip has triggered multiple distinct alert types recently.
@@ -54,9 +92,10 @@ def correlate_and_create_incident(source_ip: str) -> int | None:
         # Update existing incident's alert list
         incident_id = existing["id"]
         all_ids = ",".join(str(r["id"]) for r in rows)
+        chain_title = f"[AUTO] Attack Chain from {source_ip}: {', '.join(alert_types)}"
         conn.execute(
-            "UPDATE incidents SET alert_ids = ?, updated_at = ? WHERE id = ?",
-            (all_ids, datetime.utcnow().isoformat(), incident_id),
+            "UPDATE incidents SET alert_ids = ?, title = ?, updated_at = ? WHERE id = ?",
+            (all_ids, chain_title, datetime.utcnow().isoformat(), incident_id),
         )
         conn.commit()
         conn.close()
@@ -80,9 +119,9 @@ def correlate_and_create_incident(source_ip: str) -> int | None:
     )
 
     conn.execute("""
-        INSERT INTO incidents (title, description, severity, status, alert_ids, assigned_to)
-        VALUES (?, ?, ?, 'open', ?, 'AUTO-CORRELATOR')
-    """, (title, description, highest_sev, alert_ids_str))
+        INSERT INTO incidents (title, description, severity, status, alert_ids, assigned_to, priority, due_at)
+        VALUES (?, ?, ?, 'open', ?, 'AUTO-CORRELATOR', ?, ?)
+    """, (title, description, highest_sev, alert_ids_str, highest_sev, _due_at(highest_sev)))
     incident_id = conn.execute(
         "SELECT last_insert_rowid()"
     ).fetchone()[0]

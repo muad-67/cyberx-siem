@@ -6,20 +6,21 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { parseTs } from "../utils/time";
 import { fetchIncidents, fetchIncidentDetail, updateIncident, addIncidentNote } from '../services/api';
 import { C, SEV, card, pill, sectionTitle } from '../theme';
 
 const PRIORITY_COLOR = {
-  critical: '#ef4444',
-  high:     '#f97316',
-  medium:   '#eab308',
-  low:      '#3b82f6',
+  critical: '#E5484D',
+  high:     '#F2780C',
+  medium:   '#D99A00',
+  low:      '#6A5BF5',
 };
 
 const STATUS_COLOR = {
-  open:          { color: '#f97316', bg: '#1c0900', border: '#7c2d12' },
-  investigating: { color: '#fde047', bg: '#1a1200', border: '#713f12' },
-  resolved:      { color: '#86efac', bg: '#052e16', border: '#14532d' },
+  open:          { color: '#F2780C', bg: 'var(--org-bg)', border: 'var(--org-bd)' },
+  investigating: { color: 'var(--amb-fg)', bg: 'var(--amb-bg)', border: 'var(--amb-bd)' },
+  resolved:      { color: 'var(--grn-fg)', bg: 'var(--grn-bg)', border: 'var(--grn-bd)' },
 };
 
 function PriorityBadge({ priority }) {
@@ -47,14 +48,14 @@ function StatusBadge({ status }) {
 function TagChip({ tag, onRemove }) {
   return (
     <span style={{
-      background: '#1e1b4b', color: '#a5b4fc', border: '1px solid #3730a3',
+      background: 'var(--ind-bg)', color: 'var(--ind-fg)', border: '1px solid var(--ind-bd)',
       borderRadius: '12px', fontSize: '10px', padding: '2px 10px',
       display: 'inline-flex', alignItems: 'center', gap: '4px',
     }}>
       {tag}
       {onRemove && (
         <button onClick={() => onRemove(tag)} style={{
-          background: 'none', border: 'none', color: '#a5b4fc',
+          background: 'none', border: 'none', color: 'var(--ind-fg)',
           cursor: 'pointer', padding: '0', lineHeight: 1, fontSize: '12px',
         }}>×</button>
       )}
@@ -127,7 +128,7 @@ function Workspace({ incident, onClose, onUpdated }) {
     save({ priority: p });
   };
 
-  const NOTE_TYPE_COLOR = { note: C.t3, action: '#60a5fa', evidence: '#fde047', closure: '#86efac' };
+  const NOTE_TYPE_COLOR = { note: C.t3, action: '#6A5BF5', evidence: 'var(--amb-fg)', closure: 'var(--grn-fg)' };
 
   const inputStyle = {
     background: C.bg2, border: `1px solid ${C.b1}`,
@@ -138,7 +139,7 @@ function Workspace({ incident, onClose, onUpdated }) {
   return (
     <div style={{
       position: 'fixed', inset: 0,
-      background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)',
+      background: 'var(--overlay)', backdropFilter: 'blur(4px)',
       display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end',
       zIndex: 1000,
     }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -268,7 +269,7 @@ function Workspace({ incident, onClose, onUpdated }) {
                   <span style={{ color: C.t2, fontSize: '11px', fontWeight: '600' }}>{note.author}</span>
                 </div>
                 <span style={{ color: C.t3, fontSize: '10px' }}>
-                  {new Date(note.created_at).toLocaleString()}
+                  {parseTs(note.created_at).toLocaleString()}
                 </span>
               </div>
               <div style={{ color: C.t1, fontSize: '12px', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
@@ -390,9 +391,9 @@ export default function Investigation() {
             <div style={{ color: C.t3, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Tags:</div>
             {allTags.map(t => (
               <button key={t} onClick={() => setTagFilter(tagFilter === t ? '' : t)} style={{
-                background: tagFilter === t ? '#1e1b4b' : 'transparent',
-                color:      tagFilter === t ? '#a5b4fc' : C.t3,
-                border: `1px solid ${tagFilter === t ? '#3730a3' : C.b1}`,
+                background: tagFilter === t ? 'var(--ind-bg)' : 'transparent',
+                color:      tagFilter === t ? 'var(--ind-fg)' : C.t3,
+                border: `1px solid ${tagFilter === t ? 'var(--ind-bd)' : C.b1}`,
                 borderRadius: '20px', padding: '2px 10px', cursor: 'pointer', fontSize: '10px',
               }}>{t}</button>
             ))}
@@ -431,7 +432,7 @@ export default function Investigation() {
                     <PriorityBadge priority={inc.priority} />
                   </div>
                   <span style={{ color: C.t3, fontSize: '10px', flexShrink: 0 }}>
-                    {new Date(inc.created_at).toLocaleString()}
+                    {parseTs(inc.created_at).toLocaleString()}
                   </span>
                 </div>
 

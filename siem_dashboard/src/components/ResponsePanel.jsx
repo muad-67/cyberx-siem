@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { parseTs } from "../utils/time";
 import {
   fetchBlockedIPs, blockIP,
   fetchWatchlist, addToWatchlist, removeFromWatchlist,
@@ -86,8 +87,8 @@ function IPListSection({ title, color, items, onAdd, onRemove, placeholder, load
       {msg && (
         <div style={{
           marginBottom: '10px', padding: '7px 12px', borderRadius: '6px',
-          background: msg.ok ? '#052e16' : '#0f0505',
-          border: `1px solid ${msg.ok ? '#14532d' : '#7f1d1d'}`,
+          background: msg.ok ? 'var(--grn-bg)' : 'var(--red-bg)',
+          border: `1px solid ${msg.ok ? 'var(--grn-bd)' : 'var(--red-bd)'}`,
           color: msg.ok ? C.success : C.critical, fontSize: '12px', fontWeight: '600',
         }}>
           {msg.ok ? '✓ ' : '✗ '}{msg.text}
@@ -112,7 +113,7 @@ function IPListSection({ title, color, items, onAdd, onRemove, placeholder, load
                 {item.reason || 'No reason'}
               </span>
               <span style={{ color: C.t3, fontSize: '10px', whiteSpace: 'nowrap' }}>
-                {new Date(item.created_at).toLocaleDateString()}
+                {parseTs(item.created_at).toLocaleDateString()}
               </span>
               <button
                 onClick={() => onRemove(item.ip_address)}
@@ -199,9 +200,9 @@ export default function ResponsePanel() {
             onClick={handleBlock}
             disabled={loading || !ipInput.trim()}
             style={{
-              background: (loading || !ipInput.trim()) ? C.bg3 : '#450a0a',
-              color: (loading || !ipInput.trim()) ? C.t3 : '#fca5a5',
-              border: `1px solid ${(loading || !ipInput.trim()) ? C.b1 : '#7f1d1d'}`,
+              background: (loading || !ipInput.trim()) ? C.bg3 : 'var(--red-bg)',
+              color: (loading || !ipInput.trim()) ? C.t3 : 'var(--red-fg)',
+              border: `1px solid ${(loading || !ipInput.trim()) ? C.b1 : 'var(--red-bd)'}`,
               padding: '8px 20px', borderRadius: '8px',
               cursor: (loading || !ipInput.trim()) ? 'not-allowed' : 'pointer',
               fontSize: '12px', fontWeight: '700', whiteSpace: 'nowrap',
@@ -214,8 +215,8 @@ export default function ResponsePanel() {
           <div style={{
             marginTop: '10px', padding: '8px 12px', borderRadius: '6px',
             color: msg.ok ? C.success : C.critical,
-            background: msg.ok ? '#052e16' : '#0f0505',
-            border: `1px solid ${msg.ok ? '#14532d' : '#7f1d1d'}`,
+            background: msg.ok ? 'var(--grn-bg)' : 'var(--red-bg)',
+            border: `1px solid ${msg.ok ? 'var(--grn-bd)' : 'var(--red-bd)'}`,
             fontSize: '12px', fontWeight: '600',
           }}>
             {msg.ok ? '✓ ' : '✗ '}{msg.text}
@@ -227,7 +228,7 @@ export default function ResponsePanel() {
           <div style={{ marginTop: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <span style={{ ...sectionTitle, marginBottom: 0 }}>Blocked IPs</span>
-              <span style={{ background: '#450a0a', color: '#fca5a5', border: '1px solid #7f1d1d', borderRadius: '20px', fontSize: '10px', padding: '1px 8px', fontWeight: '700' }}>
+              <span style={{ background: 'var(--red-bg)', color: 'var(--red-fg)', border: '1px solid var(--red-bd)', borderRadius: '20px', fontSize: '10px', padding: '1px 8px', fontWeight: '700' }}>
                 {blocked.length}
               </span>
             </div>
@@ -239,7 +240,7 @@ export default function ResponsePanel() {
                   background: i % 2 === 0 ? 'transparent' : C.bg0,
                   borderTop: `1px solid ${C.b0}`,
                 }}>
-                  <span style={{ color: '#fca5a5', fontFamily: 'monospace', fontSize: '12px', fontWeight: '700' }}>
+                  <span style={{ color: 'var(--red-fg)', fontFamily: 'monospace', fontSize: '12px', fontWeight: '700' }}>
                     {b.ip_address}
                   </span>
                   <span style={{ color: C.t2, fontSize: '12px' }}>
@@ -247,7 +248,7 @@ export default function ResponsePanel() {
                     {b.alert_id && <span style={{ color: C.t3, marginLeft: '6px' }}>· Alert #{b.alert_id}</span>}
                   </span>
                   <span style={{ color: C.t3, fontSize: '11px' }}>
-                    {new Date(b.created_at).toLocaleString()}
+                    {parseTs(b.created_at).toLocaleString()}
                   </span>
                 </div>
               ))}

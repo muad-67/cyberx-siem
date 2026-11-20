@@ -8,7 +8,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContai
 import { fetchDailyReport, fetchWeeklyReport, exportAlerts, fetchStorageStats } from '../services/api';
 import { C, SEV, card, sectionTitle, pill } from '../theme';
 
-const SEV_COLORS = { critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#3b82f6', info: '#475569' };
+const SEV_COLORS = { critical: '#E5484D', high: '#F2780C', medium: '#D99A00', low: '#6A5BF5', info: '#8B8BA3' };
 
 function StatCard({ label, value, sub, color }) {
   return (
@@ -279,7 +279,7 @@ export default function Reports() {
               disabled={exporting}
               style={{
                 padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-                background: exporting ? '#1e3a8a' : 'linear-gradient(90deg, #3b82f6, #6366f1)',
+                background: exporting ? 'var(--ind-bd)' : 'linear-gradient(90deg, #6A5BF5, #6A5BF5)',
                 color: '#fff', fontWeight: '600', fontSize: '13px',
                 opacity: exporting ? 0.7 : 1, transition: 'opacity 0.15s',
               }}

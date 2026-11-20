@@ -4,8 +4,12 @@
  * Includes JWT authentication guard and Reports tab.
  */
 
-import React, { useState, useEffect } from 'react';
-import { C } from './theme';
+import React, { useState, useEffect, useMemo } from 'react';
+import { C, SHADOW, SHADOW_SM, FONT, applyTheme, initialTheme } from './theme';
+import { NavContext } from './context/nav';
+import GlobalSearch from './components/GlobalSearch';
+import { Bell, Toasts, useNotifications } from './components/Notifications';
+import Rules from './components/Rules';
 import Overview       from './components/Overview';
 import AlertPanel     from './components/AlertPanel';
 import LogFeed        from './components/LogFeed';
@@ -31,69 +35,83 @@ const NAV = [
   { id: 'endpoints',      label: 'Endpoints',     icon: SVGEndpoints      },
   { id: 'timeline',       label: 'Timeline',      icon: SVGTimeline       },
   { id: 'investigation',  label: 'Investigations',icon: SVGInvestigation  },
+  { id: 'rules',          label: 'Rules',         icon: SVGRules          },
 ];
 
 // ── Inline SVG icons ──────────────────────────────────────────────────────────
 function SVGOverview({ color }) {
-  return <svg width="16" height="16" fill="none" stroke={color} strokeWidth="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>;
+  return <svg width="18" height="18" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>;
 }
 function SVGAlerts({ color }) {
-  return <svg width="16" height="16" fill="none" stroke={color} strokeWidth="1.5" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>;
+  return <svg width="18" height="18" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>;
 }
 function SVGLogs({ color }) {
-  return <svg width="16" height="16" fill="none" stroke={color} strokeWidth="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>;
+  return <svg width="18" height="18" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>;
 }
 function SVGStats({ color }) {
-  return <svg width="16" height="16" fill="none" stroke={color} strokeWidth="1.5" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>;
+  return <svg width="18" height="18" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>;
 }
 function SVGMitre({ color }) {
-  return <svg width="16" height="16" fill="none" stroke={color} strokeWidth="1.5" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
+  return <svg width="18" height="18" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
 }
 function SVGResponse({ color }) {
-  return <svg width="16" height="16" fill="none" stroke={color} strokeWidth="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>;
+  return <svg width="18" height="18" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>;
 }
 function SVGReports({ color }) {
-  return <svg width="16" height="16" fill="none" stroke={color} strokeWidth="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>;
+  return <svg width="18" height="18" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>;
 }
 function SVGEndpoints({ color }) {
-  return <svg width="16" height="16" fill="none" stroke={color} strokeWidth="1.5" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>;
+  return <svg width="18" height="18" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>;
 }
 function SVGTimeline({ color }) {
-  return <svg width="16" height="16" fill="none" stroke={color} strokeWidth="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M3 12h6m6 0h6"/><path d="M12 3v6m0 6v6"/></svg>;
+  return <svg width="18" height="18" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M3 12h6m6 0h6"/><path d="M12 3v6m0 6v6"/></svg>;
 }
 function SVGInvestigation({ color }) {
-  return <svg width="16" height="16" fill="none" stroke={color} strokeWidth="1.5" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>;
+  return <svg width="18" height="18" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>;
+}
+
+function SVGRules({ color }) {
+  return <svg width="18" height="18" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>;
 }
 
 // ── Sidebar nav item ───────────────────────────────────────────────────────────
-function NavItem({ item, active, onClick }) {
+function NavItem({ item, active, onClick, collapsed }) {
   const Icon = item.icon;
   const isActive = active === item.id;
+  const [hover, setHover] = useState(false);
   return (
     <button
       onClick={() => onClick(item.id)}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      title={collapsed ? item.label : undefined}
+      aria-label={item.label}
+      aria-current={isActive ? 'page' : undefined}
       style={{
-        width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
-        padding: '9px 14px', borderRadius: '8px', marginBottom: '1px',
-        background: isActive
-          ? 'linear-gradient(90deg, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0.04) 100%)'
-          : 'transparent',
-        border: isActive ? `1px solid rgba(59,130,246,0.22)` : '1px solid transparent',
-        color: isActive ? C.blueLt : C.t2,
+        width: '100%', display: 'flex', alignItems: 'center', gap: '12px',
+        justifyContent: collapsed ? 'center' : 'flex-start',
+        padding: collapsed ? '11px 0' : '10px 12px', borderRadius: '10px', marginBottom: '2px',
+        background: isActive ? C.bg3 : hover ? C.bg2 : 'transparent',
+        border: 'none',
+        color: isActive ? C.accent : C.t2,
         cursor: 'pointer', textAlign: 'left',
-        fontSize: '13px', fontWeight: isActive ? '600' : '400',
-        transition: 'all 0.15s ease',
-        letterSpacing: '-0.01em',
+        fontSize: '14px', fontWeight: isActive ? '600' : '500',
+        transition: 'background 0.15s ease, color 0.15s ease',
       }}
     >
-      <Icon color={isActive ? C.blueLt : C.t3} />
-      {item.label}
-      {item.id === 'alerts' && isActive && (
-        <span style={{ marginLeft: 'auto', background: '#ef444425', color: '#ef4444', border: '1px solid #ef444440', borderRadius: '99px', fontSize: '9px', padding: '1px 7px', fontWeight: '700' }}>
-          LIVE
-        </span>
-      )}
+      <Icon color={isActive ? C.accent : C.t3} />
+      {!collapsed && item.label}
     </button>
+  );
+}
+
+function IconButton({ label, onClick, children }) {
+  return (
+    <button type="button" aria-label={label} title={label} onClick={onClick} style={{
+      width: 38, height: 38, borderRadius: '50%', border: 'none', cursor: 'pointer',
+      background: C.bg1, color: C.t2, boxShadow: SHADOW_SM,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>{children}</button>
   );
 }
 
@@ -101,17 +119,35 @@ function NavItem({ item, active, onClick }) {
 export default function App() {
   const [page, setPage]         = useState('overview');
   const [timelineIP, setTimelineIP] = useState('');
+  const [focusAlertId, setFocusAlertId] = useState(null);
   const [time, setTime]         = useState(new Date());
+  const [theme, setTheme]       = useState(initialTheme);
+  const [collapsed, setCollapsed] = useState(() => window.innerWidth < 1100);
   const [user, setUser]         = useState(() => {
     try { return JSON.parse(localStorage.getItem('cyberx_user') || 'null'); }
     catch { return null; }
   });
-  const { sseOk } = useSSE({});
+  const notes = useNotifications();
+  const { sseOk } = useSSE({ onAlert: notes.push });
 
-  const navigateToTimeline = (ip) => {
-    setTimelineIP(ip);
-    setPage('timeline');
-  };
+  useEffect(() => {
+    applyTheme(theme);
+    try { localStorage.setItem('cyberx_theme', theme); } catch { /* storage unavailable */ }
+  }, [theme]);
+
+  // Collapse the sidebar automatically on narrow windows
+  useEffect(() => {
+    const onResize = () => { if (window.innerWidth < 1000) setCollapsed(true); };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const navValue = useMemo(() => ({
+    go: setPage,
+    openTimeline: (ip) => { setTimelineIP(ip); setPage('timeline'); },
+    openAlert: (id) => { setFocusAlertId(id); setPage('alerts'); },
+  }), []);
+  const navigateToTimeline = navValue.openTimeline;
 
   useEffect(() => {
     const id = setInterval(() => setTime(new Date()), 30000);
@@ -132,88 +168,88 @@ export default function App() {
   }
 
   const active = NAV.find(n => n.id === page);
+  const sideW = collapsed ? '72px' : '236px';
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: C.bg0 }}>
+    <NavContext.Provider value={navValue}>
+    <div className="app-shell" style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: C.bg0, padding: '14px', gap: '14px', fontFamily: FONT }}>
+      <a href="#main" className="sr-only">Skip to content</a>
 
       {/* ── Sidebar ─────────────────────────────────────────────── */}
       <aside style={{
-        width: '224px', flexShrink: 0,
-        background: `linear-gradient(180deg, #0c1428 0%, ${C.bg0} 100%)`,
-        borderRight: `1px solid ${C.b0}`,
+        width: sideW, flexShrink: 0,
+        background: C.bg1,
+        borderRadius: '20px',
+        boxShadow: SHADOW,
         display: 'flex', flexDirection: 'column',
-        position: 'relative', zIndex: 10,
+        transition: 'width .2s ease',
       }}>
         {/* Logo */}
-        <div style={{ padding: '20px 16px 16px', borderBottom: `1px solid ${C.b0}` }}>
+        <div style={{ padding: collapsed ? '22px 0 12px' : '22px 20px 12px', display: 'flex', justifyContent: collapsed ? 'center' : 'flex-start' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
               width: '34px', height: '34px', flexShrink: 0,
-              background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-              borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 0 20px rgba(59,130,246,0.35)',
+              background: C.accent,
+              borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <path d="M9 12l2 2 4-4"/>
               </svg>
             </div>
-            <div>
-              <div style={{ color: C.t1, fontWeight: '700', fontSize: '15px', letterSpacing: '-0.4px' }}>CyberX</div>
-              <div style={{ color: C.t3, fontSize: '9.5px', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: '1px' }}>SIEM Platform</div>
-            </div>
+            {!collapsed && <div style={{ color: C.t1, fontWeight: '700', fontSize: '18px', letterSpacing: '-0.02em' }}>CyberX</div>}
           </div>
         </div>
 
         {/* Nav group */}
-        <nav style={{ flex: 1, padding: '14px 10px', overflowY: 'auto' }}>
-          <div style={{ color: C.t3, fontSize: '9px', fontWeight: '700', letterSpacing: '0.14em', textTransform: 'uppercase', padding: '0 6px 10px' }}>
-            Menu
-          </div>
+        <nav aria-label="Main" style={{ flex: 1, padding: '10px 12px', overflowY: 'auto' }}>
           {NAV.map(item => (
-            <NavItem key={item.id} item={item} active={page} onClick={setPage} />
+            <NavItem key={item.id} item={item} active={page} onClick={setPage} collapsed={collapsed} />
           ))}
         </nav>
 
-        {/* User info + logout */}
-        <div style={{ padding: '12px 14px 16px', borderTop: `1px solid ${C.b0}` }}>
-          {/* SSE status */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '10px' }}>
-            <span className={sseOk ? 'pulse' : ''} style={{
-              width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0,
-              background: sseOk ? '#10b981' : '#475569',
-              boxShadow: sseOk ? '0 0 8px #10b98160' : 'none',
-            }} />
-            <span style={{ color: sseOk ? '#10b981' : C.t3, fontSize: '11px', fontWeight: '600' }}>
-              {sseOk ? 'Stream Connected' : 'Connecting…'}
-            </span>
-          </div>
-          {/* User row */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-            <div style={{
-              width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0,
-              background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+        {/* Collapse + user card */}
+        <div style={{ padding: '10px 12px 0' }}>
+          <button type="button" onClick={() => setCollapsed(c => !c)} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                  title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', gap: 12,
+                           padding: collapsed ? '9px 0' : '9px 12px', borderRadius: 10, border: 'none', background: 'transparent', color: C.t3, cursor: 'pointer', fontSize: 13 }}>
+            <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true" style={{ transform: collapsed ? 'rotate(180deg)' : 'none' }}>
+              <polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/>
+            </svg>
+            {!collapsed && 'Collapse'}
+          </button>
+        </div>
+        <div style={{ padding: collapsed ? '10px 8px 14px' : '10px 14px 14px', borderTop: `1px solid ${C.b0}`, marginTop: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexDirection: collapsed ? 'column' : 'row' }}>
+            <div title={`${user.username} (${user.role})`} style={{
+              width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0,
+              background: C.bg3, color: C.accent,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontSize: '11px', fontWeight: '700',
+              fontSize: '14px', fontWeight: '600',
             }}>
               {user.username?.[0]?.toUpperCase() || 'U'}
             </div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ color: C.t1, fontSize: '12px', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {user.username}
+            {!collapsed && (
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ color: C.t1, fontSize: '13px', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {user.username}
+                </div>
+                <div style={{ color: C.t3, fontSize: '12px', textTransform: 'capitalize' }}>
+                  {user.role}
+                </div>
               </div>
-              <div style={{ color: C.t3, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                {user.role}
-              </div>
-            </div>
+            )}
+            <button onClick={handleLogout} title="Sign out" aria-label="Sign out" style={{
+              width: '30px', height: '30px', borderRadius: '8px', border: 'none',
+              background: 'transparent', color: C.t3, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+            </button>
           </div>
-          <button onClick={handleLogout} style={{
-            width: '100%', padding: '6px', borderRadius: '6px',
-            border: `1px solid ${C.b1}`, background: 'transparent',
-            color: C.t3, fontSize: '11px', cursor: 'pointer',
-            transition: 'all 0.15s',
-          }}>
-            Sign Out
-          </button>
         </div>
       </aside>
 
@@ -222,42 +258,42 @@ export default function App() {
 
         {/* Topbar */}
         <header style={{
-          height: '54px', flexShrink: 0,
-          background: C.bg1,
-          borderBottom: `1px solid ${C.b0}`,
+          minHeight: '56px', flexShrink: 0, gap: 12, flexWrap: 'wrap',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0 28px',
+          padding: '0 8px 0 12px',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ color: C.t3, fontSize: '13px' }}>CyberX</span>
-            <span style={{ color: C.b2, fontSize: '13px' }}>/</span>
-            <span style={{ color: C.t1, fontSize: '13px', fontWeight: '600' }}>{active?.label}</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            <span style={{ color: C.t3, fontSize: '12px' }}>
-              {time.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+          <h2 style={{ margin: 0, color: C.t1, fontSize: '15px', fontWeight: '600' }}>{active?.label}</h2>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <GlobalSearch />
+            <span style={{ color: C.t3, fontSize: '13px', margin: '0 4px' }} className="hide-narrow">
+              {time.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
             </span>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '6px',
-              background: sseOk ? '#10b98110' : '#47556910',
-              border: `1px solid ${sseOk ? '#10b98130' : '#47556930'}`,
-              borderRadius: '99px', padding: '4px 10px',
+            <div role="status" style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              background: C.bg1, borderRadius: '999px', padding: '8px 14px', boxShadow: SHADOW_SM,
             }}>
-              <span className={sseOk ? 'pulse' : ''} style={{
-                width: '6px', height: '6px', borderRadius: '50%',
-                background: sseOk ? '#10b981' : '#475569',
+              <span className={sseOk ? 'pulse' : ''} aria-hidden="true" style={{
+                width: '7px', height: '7px', borderRadius: '50%',
+                background: sseOk ? C.success : C.t3,
               }} />
-              <span style={{ color: sseOk ? '#10b981' : C.t3, fontSize: '11px', fontWeight: '600' }}>
-                {sseOk ? 'LIVE' : 'OFFLINE'}
+              <span style={{ color: C.t2, fontSize: '13px', fontWeight: '500' }}>
+                {sseOk ? 'Live' : 'Reconnecting…'}
               </span>
             </div>
+            <IconButton label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} onClick={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}>
+              {theme === 'dark'
+                ? <svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+                : <svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>}
+            </IconButton>
+            <Bell n={notes} onOpenAlert={navValue.openAlert} />
           </div>
         </header>
 
         {/* Page content */}
-        <main style={{ flex: 1, overflowY: 'auto', background: C.bg0 }}>
-          {page === 'overview'      && <Overview  onNavigate={setPage} />}
-          {page === 'alerts'        && <AlertPanel onTimeline={navigateToTimeline} />}
+        <main id="main" tabIndex={-1} style={{ flex: 1, overflowY: 'auto', borderRadius: '20px', outline: 'none' }}>
+          {page === 'overview'      && <Overview  onNavigate={setPage} user={user} />}
+          {page === 'alerts'        && <AlertPanel onTimeline={navigateToTimeline} focusId={focusAlertId} />}
           {page === 'logs'          && <LogFeed />}
           {page === 'stats'         && <StatsChart />}
           {page === 'mitre'         && <MitreMap />}
@@ -266,8 +302,12 @@ export default function App() {
           {page === 'endpoints'     && <Endpoints />}
           {page === 'timeline'      && <Timeline initialIP={timelineIP} />}
           {page === 'investigation' && <Investigation />}
+          {page === 'rules'         && <Rules user={user} />}
         </main>
       </div>
+
+      <Toasts n={notes} onOpenAlert={navValue.openAlert} />
     </div>
+    </NavContext.Provider>
   );
 }

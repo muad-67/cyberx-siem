@@ -1,0 +1,20 @@
+meta {
+  name: Ingest log (root login)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/logs
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "source_ip": "{{sampleIp}}",
+    "log_type": "auth",
+    "hostname": "test-vm",
+    "message": "pam_unix(sshd:session): session opened for user root by (uid=0)"
+  }
+}

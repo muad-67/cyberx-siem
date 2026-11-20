@@ -1,0 +1,11 @@
+meta {
+  name: Alert counts by severity
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/alerts/count
+  body: none
+  auth: inherit
+}

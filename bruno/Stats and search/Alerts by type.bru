@@ -1,0 +1,11 @@
+meta {
+  name: Alerts by type
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/stats/alerts-by-type
+  body: none
+  auth: inherit
+}

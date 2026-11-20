@@ -1,0 +1,11 @@
+meta {
+  name: Get incident
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/incidents/{{incidentId}}
+  body: none
+  auth: inherit
+}

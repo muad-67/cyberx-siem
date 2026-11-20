@@ -1,0 +1,15 @@
+meta {
+  name: Threat intel lookup
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/threat-intel/{{sampleIp}}
+  body: none
+  auth: inherit
+}
+
+docs {
+  Needs `ABUSEIPDB_KEY` set on the server for real reputation data; private IPs return `private`.
+}

@@ -1,0 +1,18 @@
+meta {
+  name: Add to whitelist
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/response/whitelist
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "ip_address": "192.168.1.10",
+    "reason": "Office scanner"
+  }
+}

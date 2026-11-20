@@ -1,0 +1,21 @@
+meta {
+  name: Set alert status
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{baseUrl}}/api/alerts/{{alertId}}/status
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "status": "investigating"
+  }
+}
+
+docs {
+  status: `open`, `investigating`, `resolved` or `false_positive`.
+}

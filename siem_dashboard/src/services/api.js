@@ -35,7 +35,7 @@ export const fetchAlerts      = (params = {}) => api.get('/api/alerts', { params
 export const fetchOverview    = ()             => api.get('/api/stats/overview').then(r => r.data);
 export const fetchTopIPs      = ()             => api.get('/api/stats/top-ips').then(r => r.data);
 export const fetchAlertsByType = ()            => api.get('/api/stats/alerts-by-type').then(r => r.data);
-export const fetchHourlyLogs  = ()             => api.get('/api/stats/hourly-logs').then(r => r.data);
+export const fetchHourlyLogs  = (hours = 24)   => api.get('/api/stats/hourly-logs', { params: { hours } }).then(r => r.data);
 
 // ── MITRE ─────────────────────────────────────────────────────────────────────
 export const fetchTopCountries    = ()         => api.get('/api/stats/top-countries').then(r => r.data);
@@ -100,3 +100,11 @@ export const fetchIncidentDetail  = (id)         => api.get(`/api/incidents/${id
 export const updateIncident       = (id, data)   => api.put(`/api/incidents/${id}`, data).then(r => r.data);
 export const addIncidentNote      = (id, data)   => api.post(`/api/incidents/${id}/notes`, data).then(r => r.data);
 export const fetchIncidentNotes   = (id)         => api.get(`/api/incidents/${id}/notes`).then(r => r.data);
+
+// ── Search ────────────────────────────────────────────────────────────────────
+export const searchAll = (q) => api.get('/api/search', { params: { q } }).then(r => r.data);
+
+// ── Detection rules ───────────────────────────────────────────────────────────
+export const fetchRules  = ()          => api.get('/api/rules').then(r => r.data);
+export const updateRule  = (id, data)  => api.put(`/api/rules/${id}`, data).then(r => r.data);
+export const testRule    = (id, data)  => api.post(`/api/rules/${id}/test`, data).then(r => r.data);

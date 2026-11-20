@@ -1,0 +1,19 @@
+meta {
+  name: Block IP
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/response/block-ip
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "ip_address": "203.0.113.50",
+    "reason": "Brute force",
+    "alert_id": 1
+  }
+}

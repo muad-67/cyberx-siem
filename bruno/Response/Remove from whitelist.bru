@@ -1,0 +1,11 @@
+meta {
+  name: Remove from whitelist
+  type: http
+  seq: 8
+}
+
+delete {
+  url: {{baseUrl}}/api/response/whitelist/192.168.1.10
+  body: none
+  auth: inherit
+}

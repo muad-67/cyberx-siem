@@ -1,0 +1,19 @@
+meta {
+  name: Health check
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/health
+  body: none
+  auth: none
+}
+
+vars:pre-request {
+  baseUrl: http://localhost:5002/
+}
+
+docs {
+  Should return `{"service": "CyberX SIEM", "status": "ok"}`. If this fails, check the port in the server banner and pick the matching environment.
+}

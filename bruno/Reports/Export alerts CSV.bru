@@ -1,0 +1,16 @@
+meta {
+  name: Export alerts (CSV)
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/reports/export
+  body: none
+  auth: inherit
+}
+
+params:query {
+  format: csv
+  days: 7
+}

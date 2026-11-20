@@ -6,13 +6,15 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { IPLink } from './ui';
+import { parseTs } from "../utils/time";
 import { fetchEndpoints, fetchEndpointStats, fetchEndpointDetail } from '../services/api';
 import { C, card, pill, sectionTitle } from '../theme';
 
 const STATUS_STYLE = {
-  online:  { color: '#86efac', bg: '#052e16', border: '#14532d' },
-  stale:   { color: '#fde047', bg: '#1a1200', border: '#713f12' },
-  offline: { color: '#fca5a5', bg: '#450a0a', border: '#7f1d1d' },
+  online:  { color: 'var(--grn-fg)', bg: 'var(--grn-bg)', border: 'var(--grn-bd)' },
+  stale:   { color: 'var(--amb-fg)', bg: 'var(--amb-bg)', border: 'var(--amb-bd)' },
+  offline: { color: 'var(--red-fg)', bg: 'var(--red-bg)', border: 'var(--red-bd)' },
 };
 
 function StatCard({ label, value, color }) {
@@ -53,7 +55,7 @@ function DetailPanel({ hostname, onClose }) {
   return (
     <div style={{
       position: 'fixed', inset: 0,
-      background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)',
+      background: 'var(--overlay)', backdropFilter: 'blur(4px)',
       display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
       zIndex: 1000,
     }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -84,8 +86,8 @@ function DetailPanel({ hostname, onClose }) {
                   ['OS',          data.endpoint.os_type],
                   ['Agent Ver',   data.endpoint.agent_version],
                   ['Log Count',   data.endpoint.log_count],
-                  ['First Seen',  data.endpoint.first_seen ? new Date(data.endpoint.first_seen).toLocaleString() : '—'],
-                  ['Last Seen',   data.endpoint.last_seen  ? new Date(data.endpoint.last_seen).toLocaleString()  : '—'],
+                  ['First Seen',  data.endpoint.first_seen ? parseTs(data.endpoint.first_seen).toLocaleString() : '—'],
+                  ['Last Seen',   data.endpoint.last_seen  ? parseTs(data.endpoint.last_seen).toLocaleString()  : '—'],
                 ].map(([k, v]) => (
                   <div key={k}>
                     <div style={{ color: C.t3, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '2px' }}>{k}</div>
@@ -121,14 +123,14 @@ function DetailPanel({ hostname, onClose }) {
             <div>
               <div style={{ ...sectionTitle, marginBottom: '8px' }}>Recent Logs ({data.recent_logs?.length || 0})</div>
               <div style={{
-                background: '#020810', borderRadius: '8px', border: `1px solid ${C.b0}`,
+                background: 'var(--bg2)', borderRadius: '8px', border: `1px solid ${C.b0}`,
                 maxHeight: '300px', overflowY: 'auto', padding: '10px',
                 fontFamily: 'monospace', fontSize: '10px',
               }}>
                 {data.recent_logs?.length === 0 && <div style={{ color: C.t3, textAlign: 'center', padding: '20px' }}>No logs.</div>}
                 {data.recent_logs?.map(log => (
                   <div key={log.id} style={{ display: 'flex', gap: '10px', padding: '3px 0', borderBottom: `1px solid ${C.b0}` }}>
-                    <span style={{ color: C.t3, flexShrink: 0 }}>{new Date(log.created_at).toLocaleTimeString()}</span>
+                    <span style={{ color: C.t3, flexShrink: 0 }}>{parseTs(log.created_at).toLocaleTimeString()}</span>
                     <span style={{ color: C.t2 }}>{log.message}</span>
                   </div>
                 ))}
@@ -177,9 +179,9 @@ export default function Endpoints() {
       {/* Summary cards */}
       {stats && (
         <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
-          <StatCard label="Online"  value={stats.online}  color="#86efac" />
-          <StatCard label="Stale"   value={stats.stale}   color="#fde047" />
-          <StatCard label="Offline" value={stats.offline} color="#fca5a5" />
+          <StatCard label="Online"  value={stats.online}  color="var(--grn-fg)" />
+          <StatCard label="Stale"   value={stats.stale}   color="var(--amb-fg)" />
+          <StatCard label="Offline" value={stats.offline} color="var(--red-fg)" />
           <StatCard label="Total"   value={stats.total}   color={C.t3}    />
         </div>
       )}
@@ -231,12 +233,12 @@ export default function Endpoints() {
                   onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? C.bg1 : C.bg0}
                 >
                   <td style={{ padding: '10px 14px', color: C.t1, fontWeight: '600' }}>{ep.hostname}</td>
-                  <td style={{ padding: '10px 14px', color: C.t2 }}>{ep.source_ip || '—'}</td>
+                  <td style={{ padding: '10px 14px', color: C.t2 }} onClick={e => e.stopPropagation()}><IPLink ip={ep.source_ip} /></td>
                   <td style={{ padding: '10px 14px', color: C.t2 }}>{ep.os_type || '—'}</td>
                   <td style={{ padding: '10px 14px', color: C.t3 }}>{ep.agent_version || '—'}</td>
                   <td style={{ padding: '10px 14px', color: C.t2 }}>{ep.log_count}</td>
                   <td style={{ padding: '10px 14px', color: C.t3, whiteSpace: 'nowrap' }}>
-                    {ep.last_seen ? new Date(ep.last_seen).toLocaleString() : '—'}
+                    {ep.last_seen ? parseTs(ep.last_seen).toLocaleString() : '—'}
                   </td>
                   <td style={{ padding: '10px 14px' }}><StatusBadge status={ep.status} /></td>
                 </tr>

@@ -1,0 +1,16 @@
+meta {
+  name: Search logs
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/logs/search
+  body: none
+  auth: inherit
+}
+
+params:query {
+  q: Failed password
+  ~limit: 50
+}

@@ -192,6 +192,20 @@ def init_db():
     c.execute("CREATE INDEX IF NOT EXISTS idx_endpoints_ip      ON endpoints(source_ip)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_notes_incident    ON investigation_notes(incident_id)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_ti_ip             ON threat_intel_cache(ip_address)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_logs_ip_time      ON raw_logs(source_ip, created_at)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_logs_host         ON raw_logs(hostname)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_logs_sev          ON raw_logs(severity)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_alerts_time       ON alerts(created_at)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_alerts_dedup      ON alerts(alert_type, source_ip, timestamp)")
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS rule_overrides (
+            rule_id    TEXT PRIMARY KEY,
+            enabled    INTEGER NOT NULL DEFAULT 1,
+            threshold  INTEGER,
+            window     INTEGER,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
 
     conn.commit()
     conn.close()
@@ -245,6 +259,18 @@ def _migrate():
     if "priority" not in incidents_cols:
         c.execute("ALTER TABLE incidents ADD COLUMN priority TEXT DEFAULT 'medium'")
         migrations.append("incidents.priority")
+
+    if "occurrences" not in alerts_cols:
+        c.execute("ALTER TABLE alerts ADD COLUMN occurrences INTEGER DEFAULT 1")
+        migrations.append("alerts.occurrences")
+
+    if "last_seen" not in alerts_cols:
+        c.execute("ALTER TABLE alerts ADD COLUMN last_seen TEXT")
+        migrations.append("alerts.last_seen")
+
+    if "due_at" not in incidents_cols:
+        c.execute("ALTER TABLE incidents ADD COLUMN due_at TEXT")
+        migrations.append("incidents.due_at")
 
     if "country" not in logs_cols:
         c.execute("ALTER TABLE raw_logs ADD COLUMN country TEXT")

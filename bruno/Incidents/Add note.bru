@@ -1,0 +1,23 @@
+meta {
+  name: Add note
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/incidents/{{incidentId}}/notes
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "content": "Checked auth logs, source IP is external.",
+    "author": "mohadek",
+    "note_type": "note"
+  }
+}
+
+docs {
+  note_type: `note`, `action`, `evidence` or `closure`.
+}

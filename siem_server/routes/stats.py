@@ -77,15 +77,24 @@ def top_countries():
 
 @stats_bp.route("/api/stats/hourly-logs", methods=["GET"])
 def hourly_logs():
+    """
+    Log volume over time. ?hours=24 (1-720). Up to 72h is bucketed per hour,
+    longer ranges are bucketed per day. Buckets are UTC.
+    """
+    try:
+        hours = max(1, min(int(request.args.get("hours", 24)), 720))
+    except ValueError:
+        hours = 24
+    fmt = "%Y-%m-%d %H:00" if hours <= 72 else "%Y-%m-%d 00:00"
     conn = get_db()
-    rows = conn.execute("""
-        SELECT strftime('%Y-%m-%d %H:00', created_at) AS hour,
+    rows = conn.execute(f"""
+        SELECT strftime('{fmt}', created_at) AS hour,
                COUNT(*) AS count
         FROM raw_logs
-        WHERE created_at >= datetime('now', '-24 hours')
+        WHERE created_at >= datetime('now', ? || ' hours')
         GROUP BY hour
         ORDER BY hour ASC
-    """).fetchall()
+    """, (f"-{hours}",)).fetchall()
     conn.close()
     return jsonify([dict(r) for r in rows])
 

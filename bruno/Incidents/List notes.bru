@@ -1,0 +1,11 @@
+meta {
+  name: List notes
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/incidents/{{incidentId}}/notes
+  body: none
+  auth: inherit
+}

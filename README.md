@@ -18,6 +18,73 @@
 
 ---
 
+## Running on macOS
+
+Requires `python3` and `node` (`brew install python node`). One command starts the backend and the dashboard:
+
+```bash
+./run_mac.sh
+```
+
+The first run creates a venv and installs dependencies. The script prints the URLs it chose, for example `Dashboard: http://localhost:3000 | API: http://127.0.0.1:5001`. Press `Ctrl+C` to stop both.
+
+**Ports.** macOS uses port 5000 for AirPlay Receiver, so the API starts at the first free port from **5001** to 5010. The script checks that ports are free before it starts and tells you if they aren't. To choose ports yourself:
+
+```bash
+SIEM_PORT=5002 DASH_PORT=3001 ./run_mac.sh
+```
+
+(`SIEM_PORT` controls the Flask API. On Windows/Linux it defaults to 5000.)
+
+### Mac agent (optional)
+
+`siem_agent/mac_agent.py` reads the macOS unified log for `sudo`, `sshd`, `su`, `authd` and login-authentication events and ships them to the SIEM. In a **second terminal** (use the server's venv, which already has `requests`):
+
+```bash
+cd siem_agent
+sudo ../siem_server/venv/bin/python mac_agent.py
+```
+
+- It finds the server on `127.0.0.1` ports 5001–5010 and 5000. To point it elsewhere: `SIEM_URL=http://192.168.1.10:5001 ...`.
+- `sudo` is recommended; without it some sudo/ssh events are hidden (the agent warns you).
+- The first poll looks back 60 seconds (`LOOKBACK_SECS=3600` for an hour). `POLL_INTERVAL` sets the polling interval (default 10s). Events are de-duplicated and retried if the server is down.
+- Try it: run `sudo -k; sudo ls` and enter a wrong password; the event should show up in the **Log Feed** tab within a poll or two. (macOS log contents vary by version, so if nothing appears, check `/usr/bin/log show --last 2m --predicate 'process == "sudo"'`.)
+
+### Send test attacks on macOS
+
+The simulator needs `requests`, so use the server venv and your API port:
+
+```bash
+siem_server/venv/bin/python scripts/simulate_attack.py --url http://127.0.0.1:5001/api/logs
+```
+
+### Mac troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `Port 3000 is already in use` | Stop the old dashboard, or `DASH_PORT=3001 ./run_mac.sh` |
+| `Port 5001 ... in use` | `SIEM_PORT=5002 ./run_mac.sh` (or leave it unset to auto-pick) |
+| Dashboard says "Connecting…" | The API port changed. Restart with `./run_mac.sh` so the dashboard is rebuilt with the right API URL |
+| `npm not found` / `python3 not found` | `brew install node python` |
+| Simulator: `No module named 'requests'` | Use `siem_server/venv/bin/python`, not system python |
+| `mac_agent.py` ships nothing | Normal if no sudo/ssh/login activity occurred; try the wrong-password test above |
+
+---
+
+## Testing the API with Bruno
+
+A ready-made [Bruno](https://www.usebruno.com) collection lives in [`bruno/`](bruno/) with every backend endpoint (auth, logs, alerts, incidents, rules, response, stats, MITRE, endpoints, reports, live stream).
+
+1. Install Bruno (`brew install --cask bruno`) and start the server (`./run_mac.sh`).
+2. In Bruno: **Open Collection** and choose the `bruno` folder.
+3. Pick an environment (top right) whose port matches the **API** URL printed by `./run_mac.sh`: `Local (5002)`, `Local (5001)` or `Default (5000)`. You can edit `baseUrl` in the environment.
+4. Open the environment once and enter the account **password** (it is stored as a secret, not in the files).
+5. Run **00 Start here → Login**. It saves the JWT in the `token` variable and every other request uses it.
+
+Some requests change data (block an IP, update an incident, register a user), so run them against a copy of the database if you care about what's in it. Variables such as `sampleIp`, `alertId`, `incidentId` and `hostname` are set in the environment.
+
+---
+
 ## Step 1 — Start the Backend (Flask API)
 
 Open **PowerShell** and run:

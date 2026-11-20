@@ -1,0 +1,11 @@
+meta {
+  name: Log count
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/logs/count
+  body: none
+  auth: inherit
+}

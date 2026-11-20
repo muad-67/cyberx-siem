@@ -8,9 +8,11 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { parseTs } from "../utils/time";
 import { fetchAlerts, fetchIncidentReport, updateAlertStatus, blockIP, checkThreatIntel } from '../services/api';
 import { useSSE } from '../services/useSSE';
-import { C, SEV, card, pill } from '../theme';
+import { C, SEV, card, SHADOW, MONO } from '../theme';
+import { IPLink, EmptyState, CardSkeleton } from './ui';
 
 /* ─── tiny helpers ───────────────────────────────────────────────── */
 
@@ -20,38 +22,14 @@ function MitreBadge({ technique, name }) {
     <a href={`https://attack.mitre.org/techniques/${technique}/`}
        target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
       <span style={{
-        background: '#1e1b4b', color: '#a5b4fc',
+        background: 'var(--ind-bg)', color: 'var(--ind-fg)',
         fontSize: '10px', padding: '2px 8px',
-        borderRadius: '4px', border: '1px solid #3730a3',
+        borderRadius: '4px', border: '1px solid var(--ind-bd)',
         cursor: 'pointer', whiteSpace: 'nowrap',
       }}>
         {technique} · {name}
       </span>
     </a>
-  );
-}
-
-function ActionBtn({ label, onClick, color = C.blue, bg, border }) {
-  const [hover, setHover] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        background: hover ? (bg || `${color}25`) : (bg || `${color}15`),
-        color,
-        border: `1px solid ${border || `${color}40`}`,
-        padding: '4px 11px',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        fontSize: '11px',
-        fontWeight: '600',
-        transition: 'background 0.15s',
-      }}
-    >
-      {label}
-    </button>
   );
 }
 
@@ -68,7 +46,7 @@ function ReportModal({ alertId, onClose }) {
   return (
     <div style={{
       position: 'fixed', inset: 0,
-      background: 'rgba(0,0,0,0.75)',
+      background: 'var(--overlay)',
       backdropFilter: 'blur(4px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       zIndex: 1000,
@@ -136,7 +114,7 @@ function TIBadge({ ip }) {
   if (!ti) {
     return (
       <button onClick={check} style={{
-        background: '#1e2a3a', color: '#60a5fa', border: '1px solid #1d4ed8',
+        background: 'var(--b1)', color: '#6A5BF5', border: '1px solid var(--ind-fg)',
         borderRadius: '4px', fontSize: '10px', padding: '2px 8px', cursor: 'pointer',
       }}>
         Check Reputation
@@ -155,9 +133,9 @@ function TIBadge({ ip }) {
   const malicious = ti.is_malicious || ti.abuse_score >= 25;
   return (
     <span style={{
-      background: malicious ? '#450a0a' : '#052e16',
-      color: malicious ? '#fca5a5' : '#86efac',
-      border: `1px solid ${malicious ? '#7f1d1d' : '#14532d'}`,
+      background: malicious ? 'var(--red-bg)' : 'var(--grn-bg)',
+      color: malicious ? 'var(--red-fg)' : 'var(--grn-fg)',
+      border: `1px solid ${malicious ? 'var(--red-bd)' : 'var(--grn-bd)'}`,
       borderRadius: '4px', fontSize: '10px', padding: '2px 8px', fontWeight: '700',
     }}>
       TI {ti.abuse_score} {malicious ? '⚠ Malicious' : '✓ Clean'}{ti.country_code ? ` · ${ti.country_code}` : ''}
@@ -165,149 +143,188 @@ function TIBadge({ ip }) {
   );
 }
 
-/* ─── Alert Card ─────────────────────────────────────────────────── */
+/* ─── Pieces ─────────────────────────────────────────────────────── */
 
-function AlertCard({ alert, onChangeStatus, onBlock, onReport, onTimeline }) {
-  const s = SEV[alert.severity] || SEV.info;
+const pretty = s => (s || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+const STATUS_LABEL = { open: 'Open', investigating: 'Investigating', resolved: 'Resolved', false_positive: 'False positive' };
 
+function SevBadge({ severity }) {
+  const s = SEV[severity] || SEV.info;
   return (
-    <div style={{
-      background: s.bg,
-      border: `1px solid ${s.border}`,
-      borderLeft: `3px solid ${s.badge}`,
-      borderRadius: '10px',
-      padding: '14px 16px',
-      marginBottom: '8px',
-      boxShadow: `0 0 20px ${s.glow}`,
-      transition: 'box-shadow 0.2s',
-    }}>
-      {/* Header row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <span style={{
-            ...pill(s.badge, `${s.badge}25`, `${s.badge}50`),
-            textTransform: 'uppercase', letterSpacing: '0.07em',
-          }}>
-            {alert.severity}
-          </span>
-          <span style={{ color: C.t1, fontWeight: '700', fontSize: '13px', letterSpacing: '0.02em' }}>
-            {alert.alert_type.replace(/_/g, ' ').toUpperCase()}
-          </span>
-          <span style={{ color: C.t3, fontSize: '11px' }}>#{alert.id}</span>
-          {alert.risk_score != null && (
-            <span style={{
-              background: alert.risk_score >= 80 ? '#450a0a' : alert.risk_score >= 60 ? '#1c0900' : alert.risk_score >= 40 ? '#1a1200' : C.bg2,
-              color: alert.risk_score >= 80 ? '#fca5a5' : alert.risk_score >= 60 ? '#fdba74' : alert.risk_score >= 40 ? '#fde047' : C.t3,
-              border: `1px solid ${alert.risk_score >= 80 ? '#7f1d1d' : alert.risk_score >= 60 ? '#7c2d12' : alert.risk_score >= 40 ? '#713f12' : C.b1}`,
-              borderRadius: '4px', fontSize: '10px', padding: '2px 7px', fontWeight: '700',
-            }}>
-              RISK {alert.risk_score}
-            </span>
-          )}
-        </div>
-        <span style={{ color: C.t3, fontSize: '11px' }}>
-          {new Date(alert.created_at).toLocaleString()}
-        </span>
-      </div>
-
-      {/* Description */}
-      <div style={{ color: C.t2, fontSize: '12px', lineHeight: '1.5', marginBottom: '10px' }}>
-        {alert.description}
-      </div>
-
-      {/* Badges row */}
-      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
-        <MitreBadge technique={alert.mitre_technique} name={alert.mitre_name} />
-        {alert.mitre_tactic && (
-          <span style={{ background: '#1e1b4b', color: '#818cf8', fontSize: '10px', padding: '2px 8px', borderRadius: '4px', border: '1px solid #3730a3' }}>
-            {alert.mitre_tactic}
-          </span>
-        )}
-        {alert.source_ip && (
-          <span style={{ ...pill('#fca5a5', '#450a0a', '#7f1d1d') }}>
-            SRC: {alert.source_ip}
-          </span>
-        )}
-        <span style={{ ...pill(C.t3, C.bg2, C.b1) }}>
-          {alert.status}
-        </span>
-        {alert.source_ip && <TIBadge ip={alert.source_ip} />}
-      </div>
-
-      {/* Action buttons */}
-      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-        {alert.status === 'open' && (
-          <ActionBtn label="Investigate" onClick={() => onChangeStatus(alert.id, 'investigating')} color={C.blue} />
-        )}
-        {alert.status === 'investigating' && (
-          <ActionBtn label="Resolve" onClick={() => onChangeStatus(alert.id, 'resolved')} color={C.success} />
-        )}
-        {alert.source_ip && alert.status !== 'resolved' && (
-          <ActionBtn label={`Block ${alert.source_ip}`} onClick={() => onBlock(alert)}
-                     color="#fca5a5" bg="#450a0a" border="#7f1d1d" />
-        )}
-        {alert.source_ip && (
-          <ActionBtn label="Timeline" onClick={() => onTimeline(alert.source_ip)}
-                     color="#a78bfa" bg="#1e1b4b" border="#3730a3" />
-        )}
-        <ActionBtn label="Report" onClick={() => onReport(alert.id)} color={C.t2} bg={C.bg2} border={C.b2} />
-        {alert.status === 'open' && (
-          <ActionBtn label="False Positive" onClick={() => onChangeStatus(alert.id, 'false_positive')}
-                     color={C.t3} bg="transparent" border={C.b1} />
-        )}
-      </div>
-    </div>
+    <span style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}`, borderRadius: 999,
+                   padding: '2px 10px', fontSize: 12, fontWeight: 600, textTransform: 'capitalize', whiteSpace: 'nowrap' }}>
+      {severity}
+    </span>
   );
 }
 
-/* ─── Filter Pill ────────────────────────────────────────────────── */
-
-function FilterPill({ label, active, onClick }) {
+function Btn({ children, onClick, kind = 'secondary', disabled }) {
+  const kinds = {
+    primary:   { background: C.accent, color: '#fff', border: 'none' },
+    secondary: { background: C.bg1, color: C.t1, border: `1px solid ${C.b1}` },
+    danger:    { background: 'var(--red-bg)', color: 'var(--red-fg)', border: '1px solid var(--red-bd)' },
+    ghost:     { background: 'transparent', color: C.t2, border: `1px solid ${C.b1}` },
+  };
   return (
-    <button onClick={onClick} style={{
-      background: active ? C.blue : C.bg2,
-      color:      active ? '#fff' : C.t2,
-      border: `1px solid ${active ? C.blue : C.b1}`,
-      padding: '4px 12px',
-      borderRadius: '20px',
-      cursor: 'pointer',
-      fontSize: '11px',
-      fontWeight: '600',
-      transition: 'all 0.15s',
-    }}>
-      {label}
+    <button type="button" disabled={disabled} onClick={onClick} style={{
+      ...kinds[kind], borderRadius: 10, padding: '8px 14px', fontSize: 13, fontWeight: 600,
+      cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.6 : 1,
+    }}>{children}</button>
+  );
+}
+
+function Chip({ active, onClick, children }) {
+  return (
+    <button type="button" aria-pressed={active} onClick={onClick} style={{
+      background: active ? C.accent : C.bg1, color: active ? '#fff' : C.t2,
+      border: `1px solid ${active ? C.accent : C.b1}`, borderRadius: 999, padding: '5px 13px',
+      cursor: 'pointer', fontSize: 13, fontWeight: 500, transition: 'all .15s',
+    }}>{children}</button>
+  );
+}
+
+function AlertRow({ alert, selected, onSelect }) {
+  const s = SEV[alert.severity] || SEV.info;
+  return (
+    <button type="button" onClick={() => onSelect(alert.id)} aria-pressed={selected}
+            style={{
+              display: 'grid', gridTemplateColumns: '10px 92px minmax(0,1fr) auto', alignItems: 'center', gap: 12,
+              width: '100%', textAlign: 'left', cursor: 'pointer', padding: '12px 14px', borderRadius: 14, marginBottom: 2,
+              border: `1px solid ${selected ? C.accent : 'transparent'}`, background: selected ? C.bg3 : 'transparent',
+              transition: 'background .12s',
+            }}
+            onMouseEnter={e => { if (!selected) e.currentTarget.style.background = C.bg2; }}
+            onMouseLeave={e => { if (!selected) e.currentTarget.style.background = 'transparent'; }}>
+      <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: s.badge }} />
+      <SevBadge severity={alert.severity} />
+      <span style={{ minWidth: 0 }}>
+        <span style={{ display: 'block', color: C.t1, fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {pretty(alert.alert_type)}
+          {alert.occurrences > 1 && <span title={`Fired ${alert.occurrences} times`} style={{ marginLeft: 8, color: C.t3, fontWeight: 500, fontSize: 12 }}>×{alert.occurrences}</span>}
+        </span>
+        <span style={{ display: 'block', color: C.t2, fontSize: 12.5, marginTop: 1, fontFamily: MONO }}>{alert.source_ip || 'unknown source'}</span>
+      </span>
+      <span style={{ textAlign: 'right' }}>
+        <span style={{ display: 'block', color: C.t3, fontSize: 12, whiteSpace: 'nowrap' }}>
+          {parseTs(alert.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+        </span>
+        <span style={{ display: 'block', color: C.t3, fontSize: 12 }}>{STATUS_LABEL[alert.status] || alert.status}</span>
+      </span>
     </button>
+  );
+}
+
+function Detail({ alert, onChangeStatus, onBlock, onReport, onTimeline, onClose }) {
+  const s = SEV[alert.severity] || SEV.info;
+  const [more, setMore] = useState(false);
+  const risk = alert.risk_score;
+  const riskTone = risk >= 80 ? 'red' : risk >= 60 ? 'org' : risk >= 40 ? 'amb' : null;
+
+  return (
+    <aside aria-label={`Alert ${alert.id} details`} style={{ ...card({ padding: 0, overflow: 'hidden' }), position: 'sticky', top: 0 }}>
+      <div style={{ padding: '18px 20px', background: s.bg, borderBottom: `1px solid ${s.border}` }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <SevBadge severity={alert.severity} />
+          <button type="button" aria-label="Close details" onClick={onClose}
+                  style={{ background: 'none', border: 'none', color: C.t3, cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>×</button>
+        </div>
+        <h3 style={{ margin: '10px 0 2px', color: C.t1, fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em' }}>{pretty(alert.alert_type)}</h3>
+        <div style={{ color: C.t2, fontSize: 12.5 }}>
+          Alert #{alert.id} · {parseTs(alert.created_at).toLocaleString()}
+          {alert.occurrences > 1 && <> · fired <b style={{ color: C.t1 }}>{alert.occurrences}×</b></>}
+        </div>
+      </div>
+
+      <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <p style={{ margin: 0, color: C.t1, fontSize: 13.5, lineHeight: 1.55 }}>{alert.description}</p>
+
+        <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 16px', fontSize: 13 }}>
+          <dt style={{ color: C.t3 }}>Source</dt>
+          <dd style={{ margin: 0, color: C.t1 }}><IPLink ip={alert.source_ip} /></dd>
+          <dt style={{ color: C.t3 }}>Status</dt>
+          <dd style={{ margin: 0, color: C.t1 }}>{STATUS_LABEL[alert.status] || alert.status}</dd>
+          {risk != null && (<>
+            <dt style={{ color: C.t3 }}>Risk score</dt>
+            <dd style={{ margin: 0 }}>
+              <span style={{ color: riskTone ? `var(--${riskTone}-fg)` : C.t1, fontWeight: 700 }}>{risk}</span>
+              <span style={{ color: C.t3 }}> / 100</span>
+            </dd>
+          </>)}
+          {alert.mitre_technique && (<>
+            <dt style={{ color: C.t3 }}>MITRE</dt>
+            <dd style={{ margin: 0 }}><MitreBadge technique={alert.mitre_technique} name={alert.mitre_name} /></dd>
+          </>)}
+          {alert.mitre_tactic && (<>
+            <dt style={{ color: C.t3 }}>Tactic</dt>
+            <dd style={{ margin: 0, color: C.t1 }}>{alert.mitre_tactic}</dd>
+          </>)}
+          {alert.source_ip && (<>
+            <dt style={{ color: C.t3 }}>Reputation</dt>
+            <dd style={{ margin: 0 }}><TIBadge ip={alert.source_ip} /></dd>
+          </>)}
+        </dl>
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          {alert.status === 'open' && <Btn kind="primary" onClick={() => onChangeStatus(alert.id, 'investigating')}>Start investigating</Btn>}
+          {alert.status === 'investigating' && <Btn kind="primary" onClick={() => onChangeStatus(alert.id, 'resolved')}>Mark resolved</Btn>}
+          {(alert.status === 'resolved' || alert.status === 'false_positive') && <Btn kind="secondary" onClick={() => onChangeStatus(alert.id, 'open')}>Reopen</Btn>}
+          {alert.source_ip && <Btn kind="secondary" onClick={() => onTimeline(alert.source_ip)}>View timeline</Btn>}
+          <div style={{ position: 'relative' }}>
+            <Btn kind="ghost" onClick={() => setMore(m => !m)}>More ▾</Btn>
+            {more && (
+              <div role="menu" style={{ position: 'absolute', right: 0, bottom: 'calc(100% + 6px)', minWidth: 190, zIndex: 20,
+                                        background: C.bg1, border: `1px solid ${C.b1}`, borderRadius: 12, boxShadow: SHADOW, padding: 6 }}>
+                {[
+                  { label: 'View full report', run: () => onReport(alert.id) },
+                  alert.source_ip && alert.status !== 'resolved' && { label: `Block ${alert.source_ip}`, run: () => onBlock(alert), danger: true },
+                  alert.status === 'open' && { label: 'Mark false positive', run: () => onChangeStatus(alert.id, 'false_positive') },
+                ].filter(Boolean).map(item => (
+                  <button key={item.label} role="menuitem" type="button" onClick={() => { item.run(); setMore(false); }}
+                          style={{ display: 'block', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', padding: '8px 10px', borderRadius: 8,
+                                   cursor: 'pointer', fontSize: 13, fontWeight: 500, color: item.danger ? 'var(--red-fg)' : C.t1 }}
+                          onMouseEnter={e => (e.currentTarget.style.background = C.bg2)} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </aside>
   );
 }
 
 /* ─── Main Component ─────────────────────────────────────────────── */
 
-export default function AlertPanel({ onTimeline }) {
-  const [alerts, setAlerts]     = useState([]);
-  const [filter, setFilter]     = useState('open');
-  const [loading, setLoading]   = useState(true);
+const SEVERITIES = ['critical', 'high', 'medium', 'low'];
+
+export default function AlertPanel({ onTimeline, focusId }) {
+  const [alerts, setAlerts]     = useState(null);
+  const [filter, setFilter]     = useState(focusId ? '' : 'open');
+  const [sevFilter, setSevFilter] = useState('');
+  const [query, setQuery]       = useState('');
+  const [selected, setSelected] = useState(focusId || null);
   const [reportId, setReportId] = useState(null);
-  const filterRef               = useRef('open');
+  const filterRef               = useRef(filter);
 
   useEffect(() => { filterRef.current = filter; }, [filter]);
+  useEffect(() => { if (focusId) { setFilter(''); setSelected(focusId); } }, [focusId]);
 
   const loadAll = useCallback(() => {
     const f = filterRef.current;
-    fetchAlerts(f ? { status: f, limit: 100 } : { limit: 100 })
-      .then(rows => { setAlerts(rows); setLoading(false); })
-      .catch(() => setLoading(false));
+    fetchAlerts(f ? { status: f, limit: 200 } : { limit: 200 })
+      .then(rows => setAlerts(rows))
+      .catch(() => setAlerts(prev => prev || []));
   }, []);
 
-  useEffect(() => {
-    setLoading(true);
-    loadAll();
-  }, [filter, loadAll]);
+  useEffect(() => { setAlerts(null); loadAll(); }, [filter, loadAll]);
 
   const handleNewAlert = useCallback(alert => {
     const f = filterRef.current;
     if (f && alert.status !== f) return;
     setAlerts(prev => {
-      if (prev.some(a => a.id === alert.id)) return prev;
+      if (!prev || prev.some(a => a.id === alert.id)) return prev;
       return [alert, ...prev];
     });
   }, []);
@@ -315,8 +332,7 @@ export default function AlertPanel({ onTimeline }) {
   const { sseOk } = useSSE({ onAlert: handleNewAlert });
 
   useEffect(() => {
-    const interval = sseOk ? 8000 : 4000;
-    const id = setInterval(loadAll, interval);
+    const id = setInterval(loadAll, sseOk ? 8000 : 4000);
     return () => clearInterval(id);
   }, [sseOk, loadAll]);
 
@@ -331,82 +347,63 @@ export default function AlertPanel({ onTimeline }) {
     loadAll();
   };
 
-  const FILTERS = [
-    { value: 'open',          label: 'Open' },
-    { value: 'investigating', label: 'Investigating' },
-    { value: 'resolved',      label: 'Resolved' },
-    { value: '',              label: 'All' },
+  const STATUS_FILTERS = [
+    { value: 'open', label: 'Open' }, { value: 'investigating', label: 'Investigating' },
+    { value: 'resolved', label: 'Resolved' }, { value: '', label: 'All' },
   ];
 
+  const q = query.trim().toLowerCase();
+  const visible = (alerts || []).filter(a =>
+    (!sevFilter || a.severity === sevFilter) &&
+    (!q || `${a.alert_type} ${a.source_ip || ''} ${a.mitre_technique || ''} ${a.description || ''}`.toLowerCase().includes(q)));
+  const current = (alerts || []).find(a => a.id === selected) || null;
+
   return (
-    <div style={{ padding: '20px' }}>
+    <div style={{ padding: '4px 4px 24px' }}>
       {reportId && <ReportModal alertId={reportId} onClose={() => setReportId(null)} />}
 
-      {/* Toolbar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <h2 style={{ color: C.t1, margin: 0, fontSize: '18px', fontWeight: '700' }}>
-            Security Alerts
-          </h2>
-          <span style={{
-            background: C.bg3, color: C.t2, border: `1px solid ${C.b2}`,
-            borderRadius: '20px', fontSize: '11px', padding: '2px 10px', fontWeight: '600',
-          }}>
-            {alerts.length}
-          </span>
-          <span style={{
-            display: 'flex', alignItems: 'center', gap: '4px',
-            background: sseOk ? '#052e16' : '#422006',
-            color:      sseOk ? C.success   : '#f97316',
-            border: `1px solid ${sseOk ? '#14532d' : '#7c2d12'}`,
-            borderRadius: '20px', fontSize: '10px', padding: '2px 8px', fontWeight: '700',
-          }}>
-            <span className={sseOk ? 'pulse' : ''} style={{
-              width: '6px', height: '6px', borderRadius: '50%',
-              background: sseOk ? C.success : '#f97316', display: 'inline-block',
-            }} />
-            {sseOk ? 'LIVE' : 'POLLING'}
-          </span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap', margin: '4px 8px 16px' }}>
+        <div>
+          <h1 style={{ margin: 0, color: C.t1, fontSize: 24, fontWeight: 700, letterSpacing: '-0.03em' }}>Alerts</h1>
+          <p style={{ margin: '6px 0 0', color: C.t2, fontSize: 14 }}>
+            {alerts === null ? 'Loading…' : `${visible.length} shown`}
+            <span style={{ color: C.t3 }}> · {sseOk ? 'updating live' : 'refreshing every few seconds'}</span>
+          </p>
         </div>
-
-        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-          {FILTERS.map(f => (
-            <FilterPill
-              key={f.value}
-              label={f.label}
-              active={filter === f.value}
-              onClick={() => setFilter(f.value)}
-            />
-          ))}
-        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.bg1, borderRadius: 999, padding: '8px 14px', boxShadow: 'var(--shadow-sm)', minWidth: 240 }}>
+          <span className="sr-only">Filter alerts</span>
+          <svg width="15" height="15" fill="none" stroke={C.t3} strokeWidth="1.8" strokeLinecap="round" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Filter by type, IP or technique"
+                 style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 13.5, color: C.t1 }} />
+        </label>
       </div>
 
-      {/* Alert list */}
-      {loading && (
-        <div style={{ color: C.t3, fontSize: '13px', textAlign: 'center', padding: '32px' }}>
-          Loading alerts…
-        </div>
-      )}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '0 8px 14px', alignItems: 'center' }}>
+        {STATUS_FILTERS.map(f => <Chip key={f.label} active={filter === f.value} onClick={() => setFilter(f.value)}>{f.label}</Chip>)}
+        <span aria-hidden="true" style={{ width: 1, height: 20, background: C.b2, margin: '0 4px' }} />
+        <Chip active={!sevFilter} onClick={() => setSevFilter('')}>Any severity</Chip>
+        {SEVERITIES.map(sv => <Chip key={sv} active={sevFilter === sv} onClick={() => setSevFilter(sevFilter === sv ? '' : sv)}>{pretty(sv)}</Chip>)}
+      </div>
 
-      {!loading && alerts.length === 0 && (
-        <div style={{
-          ...card({ padding: '60px', textAlign: 'center' }),
-          color: C.t3, fontSize: '14px',
-        }}>
-          No alerts for this filter.
-        </div>
-      )}
+      <div style={{ display: 'grid', gridTemplateColumns: current ? 'minmax(0,1fr) minmax(300px, 400px)' : 'minmax(0,1fr)', gap: 14, alignItems: 'start' }} className="alerts-layout">
+        <section aria-label="Alert list" style={{ ...card({ padding: 8 }) }}>
+          {alerts === null ? (
+            <div style={{ padding: 16 }}><CardSkeleton lines={6} height={260} /></div>
+          ) : visible.length === 0 ? (
+            <EmptyState
+              icon={<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 11.1V12a10 10 0 1 1-5.9-9.1"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}
+              title={alerts.length ? 'No alerts match these filters' : 'No alerts here'}
+              body={alerts.length ? 'Try clearing the severity filter or search.' : 'When a detection rule fires it will show up here straight away.'} />
+          ) : visible.map(a => (
+            <AlertRow key={a.id} alert={a} selected={a.id === selected} onSelect={id => setSelected(id === selected ? null : id)} />
+          ))}
+        </section>
 
-      {alerts.map(alert => (
-        <AlertCard
-          key={alert.id}
-          alert={alert}
-          onChangeStatus={changeStatus}
-          onBlock={handleBlock}
-          onReport={setReportId}
-          onTimeline={onTimeline || (() => {})}
-        />
-      ))}
+        {current && (
+          <Detail alert={current} onChangeStatus={changeStatus} onBlock={handleBlock} onReport={setReportId}
+                  onTimeline={onTimeline || (() => {})} onClose={() => setSelected(null)} />
+        )}
+      </div>
     </div>
   );
 }

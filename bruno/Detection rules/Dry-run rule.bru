@@ -1,0 +1,18 @@
+meta {
+  name: Dry-run rule
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/rules/R001/test
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "hours": 24,
+    "threshold": 5
+  }
+}

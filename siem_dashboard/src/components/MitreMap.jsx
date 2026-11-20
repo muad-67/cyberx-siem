@@ -179,8 +179,8 @@ export default function MitreMap() {
               </div>
               {hitCount > 0 && (
                 <span style={{
-                  background: '#1e1b4b', color: '#a5b4fc',
-                  border: '1px solid #3730a3',
+                  background: 'var(--ind-bg)', color: 'var(--ind-fg)',
+                  border: '1px solid var(--ind-bd)',
                   borderRadius: '10px', fontSize: '10px',
                   padding: '1px 7px', fontWeight: '700',
                 }}>

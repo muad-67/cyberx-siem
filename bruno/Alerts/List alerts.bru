@@ -1,0 +1,17 @@
+meta {
+  name: List alerts
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/alerts
+  body: none
+  auth: inherit
+}
+
+params:query {
+  limit: 50
+  ~status: open
+  ~severity: critical
+}

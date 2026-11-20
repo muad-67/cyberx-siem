@@ -27,6 +27,29 @@ from engine.scoring import compute_risk_score
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
+def effective_rules() -> list:
+    """RULES with any UI overrides (enabled / threshold / window) applied."""
+    try:
+        conn = get_db()
+        rows = {r["rule_id"]: r for r in conn.execute("SELECT * FROM rule_overrides").fetchall()}
+        conn.close()
+    except Exception:
+        rows = {}
+    out = []
+    for rule in RULES:
+        o = rows.get(rule["id"])
+        if o:
+            if not o["enabled"]:
+                continue
+            rule = dict(rule)
+            if o["threshold"]:
+                rule["threshold"] = o["threshold"]
+            if o["window"]:
+                rule["window"] = o["window"]
+        out.append(rule)
+    return out
+
+
 def _keywords_match(message: str, keywords: list) -> bool:
     """Return True if any keyword appears (case-insensitive) in message."""
     msg = message.lower()
@@ -67,18 +90,28 @@ def _recent_matching_count(source_ip: str, log_type: str,
 
 def _alert_already_exists(alert_type: str, source_ip: str,
                           dedup_minutes: int = 5) -> bool:
-    """Return True if an identical alert was created in the last dedup_minutes."""
+    """
+    Return True if an identical alert was created in the last dedup_minutes.
+    The existing alert is grouped instead of duplicated: its occurrence
+    counter goes up and last_seen is refreshed.
+    """
     since = (datetime.utcnow() - timedelta(minutes=dedup_minutes)).isoformat()
     conn = get_db()
     c = conn.cursor()
     c.execute("""
         SELECT id FROM alerts
         WHERE alert_type = ? AND source_ip = ? AND timestamp >= ?
-        LIMIT 1
+        ORDER BY id DESC LIMIT 1
     """, (alert_type, source_ip, since))
-    exists = c.fetchone() is not None
+    row = c.fetchone()
+    if row:
+        c.execute("""
+            UPDATE alerts SET occurrences = COALESCE(occurrences, 1) + 1, last_seen = ?
+            WHERE id = ?
+        """, (datetime.utcnow().isoformat(), row["id"]))
+        conn.commit()
     conn.close()
-    return exists
+    return row is not None
 
 
 def _is_whitelisted(source_ip: str) -> bool:
@@ -104,8 +137,8 @@ def _create_alert(rule: dict, source_ip: str,
         INSERT INTO alerts (
             timestamp, alert_type, severity, source_ip,
             description, mitre_tactic, mitre_technique, mitre_name,
-            status, log_ids, risk_score
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)
+            status, log_ids, risk_score, occurrences, last_seen
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, 1, ?)
     """, (
         datetime.utcnow().isoformat(),
         rule["alert_type"],
@@ -117,6 +150,7 @@ def _create_alert(rule: dict, source_ip: str,
         mitre["name"],
         ",".join(str(i) for i in log_ids),
         risk_score,
+        datetime.utcnow().isoformat(),
     ))
     alert_id = c.lastrowid
     conn.commit()
@@ -124,6 +158,14 @@ def _create_alert(rule: dict, source_ip: str,
 
     print(f"[ALERT] {rule['severity'].upper()} | {rule['name']} | IP: {source_ip} "
           f"| MITRE: {mitre['technique']} ({mitre['name']}) | Score: {risk_score}")
+
+    try:
+        from services.notify import notify_alert
+        notify_alert({"id": alert_id, "alert_type": rule["alert_type"], "severity": rule["severity"],
+                      "source_ip": source_ip, "description": description,
+                      "mitre_technique": mitre["technique"], "risk_score": risk_score})
+    except Exception as e:
+        print(f"[NOTIFY] error: {e}")
     return alert_id
 
 
@@ -144,7 +186,7 @@ def run_detection_on_log(log_data: dict, log_id: int) -> list[dict]:
     if _is_whitelisted(source_ip):
         return generated
 
-    for rule in RULES:
+    for rule in effective_rules():
         # Only check rules for the matching log type
         if rule["log_type"] != log_type:
             continue
@@ -185,7 +227,10 @@ def run_detection_on_log(log_data: dict, log_id: int) -> list[dict]:
     # Run correlation if any alerts were generated
     if generated:
         try:
-            from engine.correlation import correlate_and_create_incident
+            from engine.correlation import correlate_and_create_incident, open_incident_for_critical
+            for g in generated:
+                if g["severity"] == "critical":
+                    open_incident_for_critical(source_ip, g["alert_id"], g["alert_type"])
             correlate_and_create_incident(source_ip)
         except Exception as e:
             print(f"[CORRELATOR] Error: {e}")

@@ -1,0 +1,23 @@
+meta {
+  name: Create incident
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/incidents
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "title": "Suspicious activity from {{sampleIp}}",
+    "description": "Created from Bruno",
+    "severity": "high",
+    "alert_ids": [
+      1,
+      2
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+meta {
+  name: Add to watchlist
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/response/watchlist
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "ip_address": "203.0.113.51",
+    "reason": "Suspicious scanner"
+  }
+}

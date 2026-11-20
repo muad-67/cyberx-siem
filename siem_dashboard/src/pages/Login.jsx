@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { login, register } from '../services/api';
-import { C } from '../theme';
+import { C, SHADOW } from '../theme';
 
 export default function Login({ onLogin }) {
   const [mode, setMode]         = useState('login');  // 'login' | 'register'
@@ -38,8 +38,8 @@ export default function Login({ onLogin }) {
   };
 
   const inputStyle = {
-    width: '100%', padding: '10px 14px', borderRadius: '8px',
-    background: C.bg2, border: `1px solid ${C.b2}`,
+    width: '100%', padding: '10px 14px', borderRadius: '12px',
+    background: C.bg2, border: `1px solid ${C.b1}`,
     color: C.t1, fontSize: '14px', outline: 'none', boxSizing: 'border-box',
   };
   const labelStyle = {
@@ -54,19 +54,18 @@ export default function Login({ onLogin }) {
     }}>
       <div style={{
         width: '380px', background: C.bg1,
-        border: `1px solid ${C.b1}`, borderRadius: '16px',
-        padding: '40px 36px',
+        border: `1px solid ${C.b1}`, borderRadius: '24px',
+        boxShadow: SHADOW, padding: '40px 36px',
       }}>
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <div style={{
             width: '52px', height: '52px', margin: '0 auto 14px',
-            background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+            background: C.accent,
             borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 30px rgba(59,130,246,0.4)',
           }}>
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>
             </svg>
           </div>
           <div style={{ color: C.t1, fontWeight: '700', fontSize: '20px', letterSpacing: '-0.5px' }}>
@@ -133,9 +132,9 @@ export default function Login({ onLogin }) {
 
           {error && (
             <div style={{
-              background: '#0f050530', border: '1px solid #7f1d1d',
+              background: 'var(--red-bg)', border: '1px solid var(--red-bd)',
               borderRadius: '8px', padding: '10px 14px',
-              color: '#fca5a5', fontSize: '13px',
+              color: 'var(--red-fg)', fontSize: '13px',
             }}>
               {error}
             </div>
@@ -147,8 +146,8 @@ export default function Login({ onLogin }) {
             style={{
               padding: '11px', borderRadius: '8px', border: 'none', cursor: 'pointer',
               background: loading
-                ? '#1e3a8a'
-                : 'linear-gradient(90deg, #3b82f6 0%, #6366f1 100%)',
+                ? 'var(--ind-bd)'
+                : 'linear-gradient(90deg, #6A5BF5 0%, #6A5BF5 100%)',
               color: '#fff', fontWeight: '600', fontSize: '14px',
               marginTop: '4px', transition: 'opacity 0.15s',
               opacity: loading ? 0.7 : 1,

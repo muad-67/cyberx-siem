@@ -1,0 +1,17 @@
+meta {
+  name: Export alerts (JSON)
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/reports/export
+  body: none
+  auth: inherit
+}
+
+params:query {
+  format: json
+  days: 7
+  ~severity: critical
+}

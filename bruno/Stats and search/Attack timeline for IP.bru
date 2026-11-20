@@ -1,0 +1,15 @@
+meta {
+  name: Attack timeline for IP
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/timeline/{{sampleIp}}
+  body: none
+  auth: inherit
+}
+
+params:query {
+  hours: 24
+}

@@ -1,0 +1,34 @@
+meta {
+  name: Login (saves token)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "username": "{{username}}",
+    "password": "{{password}}"
+  }
+}
+
+vars:pre-request {
+  password: ChangeMe123
+  username: analyst6
+  baseUrl: http://localhost:5002/
+}
+
+script:post-response {
+  if (res.body && res.body.token) {
+    bru.setEnvVar("token", res.body.token);
+  }
+}
+
+docs {
+  Run this first. It stores the JWT in the `token` variable, which every other request sends as a Bearer token.
+}

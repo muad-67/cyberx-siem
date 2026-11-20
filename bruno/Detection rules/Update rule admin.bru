@@ -1,0 +1,23 @@
+meta {
+  name: Update rule (admin)
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{baseUrl}}/api/rules/R001
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "enabled": true,
+    "threshold": 5,
+    "window": 60
+  }
+}
+
+docs {
+  Admin only. `threshold` is events before firing, `window` is seconds.
+}

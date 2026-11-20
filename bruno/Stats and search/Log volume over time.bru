@@ -1,0 +1,19 @@
+meta {
+  name: Log volume over time
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/stats/hourly-logs
+  body: none
+  auth: inherit
+}
+
+params:query {
+  hours: 24
+}
+
+docs {
+  1–720 hours. Up to 72h is bucketed per hour; longer ranges per day (UTC).
+}

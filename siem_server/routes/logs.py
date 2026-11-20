@@ -44,6 +44,21 @@ def ingest_log():
     if not _valid_ip(data["source_ip"]):
         return jsonify({"error": "Invalid source_ip"}), 400
 
+    log_id, alerts = store_and_detect(data)
+
+    return jsonify({
+        "status":           "received",
+        "log_id":           log_id,
+        "alerts_generated": len(alerts),
+        "alerts":           alerts,
+    }), 201
+
+
+def store_and_detect(data: dict) -> tuple:
+    """
+    Persist one validated log, update endpoint health, run detection.
+    Shared by the HTTP route and the syslog receiver. Returns (log_id, alerts).
+    """
     # Truncate overly long messages to prevent DB bloat
     message = str(data["message"])[:4096]
 
@@ -80,13 +95,7 @@ def ingest_log():
     # Run detection engine — import here to avoid circular imports at module load
     from engine.detection import run_detection_on_log
     alerts = run_detection_on_log(data, log_id)
-
-    return jsonify({
-        "status":           "received",
-        "log_id":           log_id,
-        "alerts_generated": len(alerts),
-        "alerts":           alerts,
-    }), 201
+    return log_id, alerts
 
 
 def _upsert_endpoint(data: dict):

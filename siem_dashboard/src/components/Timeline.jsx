@@ -6,15 +6,16 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { parseTs } from "../utils/time";
 import { fetchTimeline } from '../services/api';
 import { C, card, SEV, sectionTitle } from '../theme';
 
 const SEVERITY_COLOR = {
-  critical: '#ef4444',
-  high:     '#f97316',
-  medium:   '#eab308',
-  low:      '#3b82f6',
-  info:     '#475569',
+  critical: '#E5484D',
+  high:     '#F2780C',
+  medium:   '#D99A00',
+  low:      '#6A5BF5',
+  info:     '#8B8BA3',
 };
 
 const HOURS_OPTIONS = [
@@ -28,7 +29,7 @@ const HOURS_OPTIONS = [
 function TimelineEvent({ event, index }) {
   const isAlert = event.event_type === 'alert';
   const color = isAlert
-    ? (SEVERITY_COLOR[event.severity] || '#ef4444')
+    ? (SEVERITY_COLOR[event.severity] || '#E5484D')
     : (SEVERITY_COLOR[event.severity] || C.t3);
 
   const bg     = isAlert ? `${color}15` : C.bg2;
@@ -74,19 +75,19 @@ function TimelineEvent({ event, index }) {
             )}
             {event.mitre_technique && (
               <span style={{
-                background: '#1e1b4b', color: '#a5b4fc',
-                border: '1px solid #3730a3', borderRadius: '4px',
+                background: 'var(--ind-bg)', color: 'var(--ind-fg)',
+                border: '1px solid var(--ind-bd)', borderRadius: '4px',
                 fontSize: '9px', padding: '1px 6px',
               }}>
                 {event.mitre_technique}
               </span>
             )}
             {event.mitre_tactic && (
-              <span style={{ color: '#818cf8', fontSize: '10px' }}>{event.mitre_tactic}</span>
+              <span style={{ color: '#6A5BF5', fontSize: '10px' }}>{event.mitre_tactic}</span>
             )}
           </div>
           <span style={{ color: C.t3, fontSize: '10px', whiteSpace: 'nowrap' }}>
-            {event.timestamp ? new Date(event.timestamp).toLocaleString() : '—'}
+            {event.timestamp ? parseTs(event.timestamp).toLocaleString() : '—'}
           </span>
         </div>
 
@@ -206,7 +207,7 @@ export default function Timeline({ initialIP }) {
         <div style={{ color: C.t3, textAlign: 'center', padding: '40px' }}>Loading timeline for {ip}…</div>
       )}
       {error && (
-        <div style={{ color: C.critical, padding: '16px', background: '#450a0a', borderRadius: '8px', border: '1px solid #7f1d1d' }}>{error}</div>
+        <div style={{ color: C.critical, padding: '16px', background: 'var(--red-bg)', borderRadius: '8px', border: '1px solid var(--red-bd)' }}>{error}</div>
       )}
 
       {data && !loading && (
@@ -215,7 +216,7 @@ export default function Timeline({ initialIP }) {
           <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
             {[
               { label: 'Events', value: data.events?.length || 0, color: C.t2 },
-              { label: 'Alerts', value: alerts.length, color: '#ef4444' },
+              { label: 'Alerts', value: alerts.length, color: '#E5484D' },
               { label: 'Logs',   value: logs.length,   color: C.t3 },
               { label: 'Window', value: `${data.hours}h`, color: C.t3 },
             ].map(({ label, value, color }) => (

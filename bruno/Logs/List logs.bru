@@ -1,0 +1,27 @@
+meta {
+  name: List logs
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/logs
+  body: none
+  auth: inherit
+}
+
+params:query {
+  limit: 100
+  ~offset: 0
+  ~log_type: auth
+  ~severity: high
+  ~source_ip: {{sampleIp}}
+  ~hostname: test-vm
+  ~q: Failed password
+  ~from: 2026-01-01 00:00:00
+  ~to: 2026-12-31 23:59:59
+}
+
+docs {
+  Disabled (greyed-out) params are optional filters. `from`/`to` are UTC.
+}

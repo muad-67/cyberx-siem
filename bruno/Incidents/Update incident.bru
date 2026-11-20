@@ -1,0 +1,20 @@
+meta {
+  name: Update incident
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/api/incidents/{{incidentId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "status": "investigating",
+    "priority": "high",
+    "assigned_to": "mohadek",
+    "tags": "ssh,brute-force"
+  }
+}
