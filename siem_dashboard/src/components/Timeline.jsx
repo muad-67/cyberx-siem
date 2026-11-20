@@ -8,7 +8,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { parseTs } from "../utils/time";
 import { fetchTimeline } from '../services/api';
-import { C, card, SEV, sectionTitle } from '../theme';
+import { C, card, sectionTitle } from '../theme';
 
 const SEVERITY_COLOR = {
   critical: '#E5484D',

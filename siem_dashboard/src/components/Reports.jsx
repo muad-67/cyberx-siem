@@ -4,11 +4,10 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { fetchDailyReport, fetchWeeklyReport, exportAlerts, fetchStorageStats } from '../services/api';
-import { C, SEV, card, sectionTitle, pill } from '../theme';
+import { C, card, sectionTitle, pill } from '../theme';
 
-const SEV_COLORS = { critical: '#E5484D', high: '#F2780C', medium: '#D99A00', low: '#6A5BF5', info: '#8B8BA3' };
 
 function StatCard({ label, value, sub, color }) {
   return (

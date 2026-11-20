@@ -9,7 +9,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { IPLink } from './ui';
 import { parseTs } from "../utils/time";
 import { fetchEndpoints, fetchEndpointStats, fetchEndpointDetail } from '../services/api';
-import { C, card, pill, sectionTitle } from '../theme';
+import { C, card, sectionTitle } from '../theme';
 
 const STATUS_STYLE = {
   online:  { color: 'var(--grn-fg)', bg: 'var(--grn-bg)', border: 'var(--grn-bd)' },
